@@ -27,4 +27,5 @@ APP_NAME=get("app_name","we-mp-rss")
 
 
 VERSION='1.2.0'
+
 print(VERSION)
