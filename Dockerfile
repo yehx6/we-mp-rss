@@ -25,6 +25,9 @@ RUN pip3 install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # 复制后端代码
 COPY . .
+RUN rm -rf ./web_ui
+RUN rm -rf ./venv
+
 COPY ./config.example.yaml  ./config.yaml
 RUN chmod +x ./start.sh
 # 暴露端口
