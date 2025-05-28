@@ -174,7 +174,7 @@ npm run build
 
 ❤️ 赞助
 如果觉得 We-MP-RSS 对你有帮助，欢迎给我来一杯啤酒！
-![微信](docs/登录.png)
+![微信](docs/赞赏码.png)
 
 
 
