@@ -352,7 +352,7 @@ class WXArticleFetcher:
         except Exception as e:
             print_error(f"文章内容获取失败: {str(e)}")
             print_warning(f"页面内容预览: {body[:50]}...")
-            raise e
+            # raise e
             # 记录详细错误信息但继续执行
 
         try:
