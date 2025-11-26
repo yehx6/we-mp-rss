@@ -59,13 +59,13 @@ ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 
 PLAYWRIGHT_BROWSERS_PATH=${PLAYWRIGHT_BROWSERS_PATH:-/app/data/driver/_$plantform}
 BROWSER_TYPE=${BROWSER_TYPE:-webkit}
-echo "PLAYWRIGHT_BROWSERS_PATH=${PLAYWRIGHT_BROWSERS_PATH}
-TZ=Asia/Shanghai
-BROWSER_TYPE=${BROWSER_TYPE}">/etc/environment
+echo "export PLAYWRIGHT_BROWSERS_PATH=${PLAYWRIGHT_BROWSERS_PATH}
+export TZ=Asia/Shanghai
+export BROWSER_TYPE=${BROWSER_TYPE}">/app/environment.sh
 echo "环境变量已设置"
 
-cat /etc/environment
-source /etc/environment
+cat /app/environment.sh
+source /app/environment.sh
 
 # pip3 install --upgrade pip
 
