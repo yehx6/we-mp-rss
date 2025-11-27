@@ -13,6 +13,7 @@ WORKDIR /app
 # 复制后端代码
 ADD ./config.example.yaml  ./config.yaml
 ADD . .
+RUN chmod +x install.sh
 RUN chmod +x start.sh
 # 暴露端口
 EXPOSE 8001
