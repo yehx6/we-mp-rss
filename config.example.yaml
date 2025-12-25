@@ -11,7 +11,7 @@ server:
    #启动JOB定时任务，默认为True
    enable_job: ${ENABLE_JOB:-True}
    #代码修改自动重启服务，默认为False
-   auto_reload: ${AUTO_RELOAD:-False}
+   auto_reload: ${AUTO_RELOAD:-True}
    #最大线程数 默认2个线程，不建议超过4个线程
    threads: ${THREADS:-2}
    #通过web方式授权二维码 默认False 
@@ -83,7 +83,7 @@ cache:
   #视图缓存配置
   views:
     #是否启用视图缓存，默认为True
-    enabled: ${CACHE.VIEWS.ENABLED:-True}
+    enabled: ${CACHE.VIEWS.ENABLED:-False}
     #视图缓存目录，默认为./data/cache/views
     dir: ${CACHE.VIEWS.DIR:-./data/cache/views}
     #视图缓存过期时间，默认为1800秒（30分钟）
@@ -97,7 +97,7 @@ gather:
   #是否采集内容  默认False
   content: ${GATHER.CONTENT:-False}
   #采集模式，web模式（可采集到发布链接)，api模式（可采集临时链接），app模式（采集最新消息）
-  model: ${GATHER.MODEL:-app}
+  model: ${GATHER.MODEL:-web}
   #是否自动检查未采集文章内容，默认False
   content_auto_check: ${GATHER.CONTENT_AUTO_CHECK:-False}
   #自动检查未采集文章内容的时间间隔 单位秒默认59分钟 允许值 1-59分钟之间 默认59分钟
@@ -130,3 +130,9 @@ export:
     enable: ${EXPORT_MARKDOWN:-False}
     #markdown导出目录 默认./data/markdown
     dir: ${EXPORT_MARKDOWN_DIR:-./data/markdown}
+
+
+site:
+  name: ${SITE_NAME:-WeRss}
+  description: ${SITE_DESCRIPTION:-A WeChat Official Account RSS Reader}
+  keywords: ${SITE_KEYWORDS:-}
