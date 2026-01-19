@@ -342,7 +342,6 @@ class PlaywrightController:
             print(f"字典转JSON失败: {e}")
             return ""
 
-ControlDriver=PlaywrightController()
 # 示例用法
 if __name__ == "__main__":
     controller = PlaywrightController()
