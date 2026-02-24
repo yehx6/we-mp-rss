@@ -6,7 +6,7 @@ from core.database import get_db
 from sqlalchemy.orm import Session
 from schemas.tags import Tags, TagsCreate
 from .base import success_response, error_response
-from core.auth import get_current_user
+from core.auth import get_current_user_or_ak
 from core.cache import clear_cache_pattern
 
 # 标签管理API路由
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/tags", tags=["标签管理"])
 @router.get("", 
     summary="获取标签列表",
     description="分页获取所有标签信息")
-async def get_tags(offset: int = 0, limit: int = 100, db: Session = Depends(get_db),cur_user: dict = Depends(get_current_user)):
+async def get_tags(offset: int = 0, limit: int = 100, db: Session = Depends(get_db),cur_user: dict = Depends(get_current_user_or_ak)):
     """
     获取标签列表
     
@@ -45,7 +45,7 @@ async def get_tags(offset: int = 0, limit: int = 100, db: Session = Depends(get_
     summary="创建新标签",
     description="创建一个新的标签"
    )
-async def create_tag(tag: TagsCreate, db: Session = Depends(get_db),cur_user: dict = Depends(get_current_user)):
+async def create_tag(tag: TagsCreate, db: Session = Depends(get_db),cur_user: dict = Depends(get_current_user_or_ak)):
     """
     创建新标签
     
@@ -97,7 +97,7 @@ async def create_tag(tag: TagsCreate, db: Session = Depends(get_db),cur_user: di
         )
 
 @router.get("/{tag_id}", summary="获取单个标签详情",  description="根据标签ID获取标签详细信息")
-async def get_tag(tag_id: str, db: Session = Depends(get_db),cur_user: dict = Depends(get_current_user)):
+async def get_tag(tag_id: str, db: Session = Depends(get_db),cur_user: dict = Depends(get_current_user_or_ak)):
     """
     获取单个标签详情
     
@@ -117,7 +117,7 @@ async def get_tag(tag_id: str, db: Session = Depends(get_db),cur_user: dict = De
     summary="更新标签信息",
     description="根据标签ID更新标签信息",
  )
-async def update_tag(tag_id: str, tag_data: TagsCreate, db: Session = Depends(get_db),cur_user: dict = Depends(get_current_user)):
+async def update_tag(tag_id: str, tag_data: TagsCreate, db: Session = Depends(get_db),cur_user: dict = Depends(get_current_user_or_ak)):
     """
     更新标签信息
     
@@ -164,7 +164,7 @@ async def update_tag(tag_id: str, tag_data: TagsCreate, db: Session = Depends(ge
     summary="删除标签",
     description="根据标签ID删除标签",
    )
-async def delete_tag(tag_id: str, db: Session = Depends(get_db),cur_user: dict = Depends(get_current_user)):
+async def delete_tag(tag_id: str, db: Session = Depends(get_db),cur_user: dict = Depends(get_current_user_or_ak)):
     """
     删除标签
     

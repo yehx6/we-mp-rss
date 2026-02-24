@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from datetime import datetime
-from core.auth import get_current_user
+from core.auth import get_current_user_or_ak
 from core.db import DB
 from core.models import User as DBUser
 from core.auth import pwd_context
@@ -9,7 +9,7 @@ from .base import success_response, error_response
 router = APIRouter(prefix="/user", tags=["用户管理"])
 
 @router.get("", summary="获取用户信息")
-async def get_user_info(current_user: dict = Depends(get_current_user)):
+async def get_user_info(current_user: dict = Depends(get_current_user_or_ak)):
     session = DB.get_session()
     try:
         user = session.query(DBUser).filter(
@@ -44,7 +44,7 @@ async def get_user_info(current_user: dict = Depends(get_current_user)):
 
 @router.get("/list", summary="获取用户列表")
 async def get_user_list(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_or_ak),
     page: int = 1,
     page_size: int = 10
 ):
@@ -101,7 +101,7 @@ async def get_user_list(
 @router.post("", summary="添加用户")
 async def add_user(
     user_data: dict,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     """添加新用户"""
     session = DB.get_session()
@@ -167,7 +167,7 @@ async def add_user(
 @router.put("", summary="修改用户资料")
 async def update_user_info(
     update_data: dict,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     """修改用户基本信息(不包括密码)"""
     session = DB.get_session()
@@ -230,7 +230,7 @@ async def update_user_info(
 @router.put("/password", summary="修改密码")
 async def change_password(
     password_data: dict,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     """修改用户密码"""
     session = DB.get_session()
@@ -307,7 +307,7 @@ async def change_password(
 async def upload_avatar(
     file: UploadFile = File(...),
     # file: typing.Optional[UploadFile] = None,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     """处理用户头像上传"""
     try:
@@ -347,7 +347,7 @@ async def upload_avatar(
 async def upload_file(
     file: UploadFile = File(...),
     type: str = "tags",
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     """处理用户文件上传"""
     try:

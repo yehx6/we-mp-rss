@@ -2,7 +2,7 @@ from logging import info
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Body, UploadFile, File
 from fastapi.responses import FileResponse
 from fastapi.background import BackgroundTasks
-from core.auth import get_current_user
+from core.auth import get_current_user_or_ak
 from core.db import DB
 from core.wx import search_Biz
 from driver.wx import Wx
@@ -26,7 +26,7 @@ async def search_mp(
     kw: str = "",
     limit: int = 10,
     offset: int = 0,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     session = DB.get_session()
     try:
@@ -55,7 +55,7 @@ async def get_mps(
     limit: int = Query(10, ge=1, le=100),
     offset: int = Query(0, ge=0),
     kw: str = Query(""),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     session = DB.get_session()
     try:
@@ -96,7 +96,7 @@ async def update_mps(
      mp_id: str,
      start_page: int = 0,
      end_page: int = 1,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     session = DB.get_session()
     try:
@@ -172,7 +172,7 @@ async def get_mp(
 @router.post("/by_article", summary="通过文章链接获取公众号详情")
 async def get_mp_by_article(
     url: str=Query(..., min_length=1),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     try:
         info =await WXArticleFetcher().async_get_article_content(url)
@@ -203,7 +203,7 @@ async def add_mp(
     mp_id: str = Body(None, max_length=255),
     avatar: str = Body(None, max_length=500),
     mp_intro: str = Body(None, max_length=255),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     session = DB.get_session()
     try:
@@ -274,7 +274,7 @@ async def add_mp(
 @router.delete("/{mp_id}", summary="删除订阅号")
 async def delete_mp(
     mp_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     session = DB.get_session()
     try:

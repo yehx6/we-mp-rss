@@ -4,7 +4,7 @@ import sys
 import psutil
 from fastapi import APIRouter,Depends
 from typing import Dict, Any
-from core.auth import get_current_user
+from core.auth import get_current_user_or_ak
 from .base import success_response, error_response
 from driver.token import wx_cfg
 from core.config import cfg
@@ -45,7 +45,7 @@ async def get_base_info() -> Dict[str, Any]:
 from core.resource import get_system_resources
 @router.get("/resources", summary="获取系统资源使用情况")
 async def system_resources(
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ) -> Dict[str, Any]:
     """获取系统资源使用情况
     
@@ -69,7 +69,7 @@ from .ver import API_VERSION
 from core.base import VERSION as CORE_VERSION,LATEST_VERSION
 @router.get("/info", summary="获取系统信息")
 async def get_system_info(
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ) -> Dict[str, Any]:
     """获取当前系统的各种信息
     

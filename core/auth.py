@@ -85,7 +85,7 @@ def get_user(username: str) -> Optional[dict]:
     # 先检查缓存
     if username in _user_cache:
         return _user_cache[username]
-        
+
     session = DB.get_session()
     try:
         user = session.query(DBUser).filter(DBUser.username == username).first()
@@ -101,6 +101,30 @@ def get_user(username: str) -> Optional[dict]:
     except Exception as e:
         from core.print import print_error
         print_error(f"获取用户错误: {str(e)}")
+        return None
+
+def get_user_by_id(user_id: str) -> Optional[dict]:
+    """从数据库通过用户ID获取用户，带缓存功能"""
+    # 缓存键使用 id: 前缀
+    cache_key = f"id:{user_id}"
+    if cache_key in _user_cache:
+        return _user_cache[cache_key]
+
+    session = DB.get_session()
+    try:
+        user = session.query(DBUser).filter(DBUser.id == user_id).first()
+        if user:
+            # 转换为字典并存入缓存
+            user_dict = user.__dict__.copy()
+            # 移除 SQLAlchemy 内部属性（如 _sa_instance_state）
+            user_dict.pop('_sa_instance_state', None)
+            user_dict=User(**user_dict)
+            _user_cache[cache_key] = user_dict
+            return user_dict
+        return None
+    except Exception as e:
+        from core.print import print_error
+        print_error(f"通过ID获取用户错误: {str(e)}")
         return None
         
 def clear_user_cache(username: str):
@@ -297,7 +321,7 @@ def authenticate_ak(access_key: str, secret_key: str) -> Optional[dict]:
         return None
     
     # 获取关联的用户信息
-    user = get_user(ak.user_id.split('_')[0] if '_' in ak.user_id else ak.user_id)
+    user = get_user_by_id(ak.user_id)
     
     if not user:
         return None

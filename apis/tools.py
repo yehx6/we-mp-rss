@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
 from pydantic import BaseModel, Field
-from core.auth import get_current_user
+from core.auth import get_current_user_or_ak
 from core.db import DB
 from .base import success_response, error_response,BaseResponse
 from datetime import datetime
@@ -84,7 +84,7 @@ def _export_articles_worker(
 @router.post("/export/articles", summary="导出文章")
 async def export_articles(
     request: ExportArticlesRequest,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     """
     导出文章为多种格式（使用线程池异步处理）
@@ -193,7 +193,7 @@ async def download_export_file(
 @router.get("/export/list", summary="获取导出文件列表", response_model=BaseResponse)
 async def list_export_files(
     mp_id: Optional[str] = Query(None, description="公众号ID"),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     """
     获取指定公众号的导出文件列表
@@ -253,7 +253,7 @@ class DeleteFileRequest(BaseModel):
 @router.delete("/export/delete", summary="删除导出文件", response_model=BaseResponse)
 async def delete_export_file(
     request: DeleteFileRequest = Body(...),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     """
     删除指定的导出文件
@@ -300,7 +300,7 @@ async def delete_export_file(
 async def delete_export_file_by_query(
     filename: str = Query(..., description="文件名"),
     mp_id: str = Query(..., description="公众号ID"),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     """
     删除指定的导出文件（通过查询参数）

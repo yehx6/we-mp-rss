@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from core.auth import get_current_user
+from core.auth import get_current_user_or_ak
 from .base import success_response, error_response
 from core.cache import clear_cache_pattern, clear_all_cache
 
@@ -7,7 +7,7 @@ router = APIRouter(prefix="/cache", tags=["缓存管理"])
 
 @router.delete("/clear", summary="清除所有视图缓存", description="清除所有视图页面的缓存")
 async def clear_all_view_cache(
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     """清除所有视图缓存"""
     try:
@@ -30,7 +30,7 @@ async def clear_all_view_cache(
 @router.delete("/clear/{pattern}", summary="清除指定模式的缓存", description="清除匹配指定模式的缓存")
 async def clear_pattern_cache(
     pattern: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     """清除匹配模式的缓存"""
     try:

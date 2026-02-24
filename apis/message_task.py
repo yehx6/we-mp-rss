@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, status,Body,Query
 from sqlalchemy.orm import Session
 
 # 3. 本地应用/模块导入
-from core.auth import get_current_user
+from core.auth import get_current_user_or_ak
 from core.db import DB
 from core.models.message_task import MessageTask
 from .base import success_response, error_response
@@ -23,7 +23,7 @@ async def list_message_tasks(
     limit: int = Query(10, ge=1, le=100),
     offset: int = Query(0, ge=0),
     status: Optional[int] = None,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     db=DB.get_session()
     """
@@ -65,7 +65,7 @@ async def list_message_tasks(
 @router.get("/{task_id}", summary="获取单个消息任务详情")
 async def get_message_task(
     task_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     db=DB.get_session()
     """
@@ -93,7 +93,7 @@ async def get_message_task(
 @router.get("/message/test/{task_id}", summary="测试消息")
 async def test_message_task(
     task_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     db=DB.get_session()
     """
@@ -120,7 +120,7 @@ async def test_message_task(
 async def run_message_task(
     task_id: str,
     isTest:bool=Query(False),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     """
     执行单个消息任务详情
@@ -180,7 +180,7 @@ class MessageTaskCreate(BaseModel):
 @router.post("", summary="创建消息任务", status_code=status.HTTP_201_CREATED)
 async def create_message_task(
     task_data: MessageTaskCreate = Body(...),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     """
     创建新消息任务
@@ -220,7 +220,7 @@ async def create_message_task(
 async def update_message_task(
     task_id: str,
     task_data: MessageTaskCreate = Body(...),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     db=DB.get_session()
     """
@@ -265,7 +265,7 @@ async def update_message_task(
         return error_response(code=500, message=str(e))
 @router.put("/job/fresh",summary="重载任务")
 async def fresh_message_task(
-     current_user: dict = Depends(get_current_user)
+     current_user: dict = Depends(get_current_user_or_ak)
 ):
     """
     重载任务
@@ -276,7 +276,7 @@ async def fresh_message_task(
 @router.delete("/{task_id}",summary="删除消息任务")
 async def delete_message_task(
     task_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     """
     删除消息任务

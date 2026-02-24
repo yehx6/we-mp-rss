@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status as fast_status, Query
-from core.auth import get_current_user
+from core.auth import get_current_user_or_ak
 from core.db import DB
 from core.models.base import DATA_STATUS
 from core.models.article import Article,ArticleBase
@@ -16,7 +16,7 @@ router = APIRouter(prefix=f"/articles", tags=["文章管理"])
     
 @router.delete("/clean", summary="清理无效文章(MP_ID不存在于Feeds表中的文章)")
 async def clean_orphan_articles(
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     session = DB.get_session()
     try:
@@ -55,7 +55,7 @@ async def clean_orphan_articles(
 async def toggle_article_read_status(
     article_id: str,
     is_read: bool = Query(..., description="阅读状态: true为已读, false为未读"),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     session = DB.get_session()
     try:
@@ -99,7 +99,7 @@ async def toggle_article_read_status(
     
 @router.delete("/clean_duplicate_articles", summary="清理重复文章")
 async def clean_duplicate(
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     try:
         from tools.clean import clean_duplicate_articles
@@ -127,7 +127,7 @@ async def get_articles(
     search: str = Query(None),
     mp_id: str = Query(None),
     has_content:bool=Query(False),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     session = DB.get_session()
     try:
@@ -222,7 +222,7 @@ async def get_article_detail(
 @router.delete("/{article_id}", summary="删除文章")
 async def delete_article(
     article_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     session = DB.get_session()
     try:
@@ -258,7 +258,7 @@ async def delete_article(
 @router.get("/{article_id}/next", summary="获取下一篇文章")
 async def get_next_article(
     article_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     session = DB.get_session()
     try:
@@ -304,7 +304,7 @@ async def get_next_article(
 @router.get("/{article_id}/prev", summary="获取上一篇文章")
 async def get_prev_article(
     article_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     session = DB.get_session()
     try:

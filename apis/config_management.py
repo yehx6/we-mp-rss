@@ -4,7 +4,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 from core.models.config_management import ConfigManagement
 from core.db  import DB
-from core.auth import get_current_user
+from core.auth import get_current_user_or_ak
 from .base import  success_response, error_response
 from core.config import cfg
 router = APIRouter(prefix="/configs", tags=["配置管理"])
@@ -14,7 +14,7 @@ router = APIRouter(prefix="/configs", tags=["配置管理"])
 def list_configs(
     limit: int = Query(10, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     # db=DB.get_session()
     """获取配置项列表"""
@@ -38,7 +38,7 @@ def list_configs(
 @router.get("/{config_key}", summary="获取单个配置项详情")
 def get_config(
     config_key: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     db=DB.get_session()
     """获取单个配置项详情"""
@@ -58,7 +58,7 @@ class ConfigManagementCreate(BaseModel):
 @router.post("", summary="创建配置项")
 def create_config(
     config_data: ConfigManagementCreate = Body(...),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     db=DB.get_session()
     """创建配置项"""
@@ -85,7 +85,7 @@ def create_config(
 def update_config(
     config_key: str=Path(...,min_length=1),
     config_data: ConfigManagementCreate = Body(...),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     db=DB.get_session()
     """更新配置项"""
@@ -109,7 +109,7 @@ def update_config(
 @router.delete("/{config_key}",summary="删除配置项")
 def delete_config(
     config_key: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     db=DB.get_session()
     """删除配置项"""

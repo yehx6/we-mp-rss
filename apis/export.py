@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Body, UploadFile, File,Request
 from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
-from core.auth import get_current_user
+from core.auth import get_current_user_or_ak
 from core.db import DB
 from core.wx import search_Biz
 from .base import success_response, error_response
@@ -20,7 +20,7 @@ async def export_mps(
     limit: int = Query(1000, ge=1, le=10000),
     offset: int = Query(0, ge=0),
     kw: str = Query(""),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     session = DB.get_session()
     try:
@@ -71,7 +71,7 @@ async def export_mps(
 @router.post("/mps/import", summary="导入公众号列表")
 async def import_mps(
     file: UploadFile = File(...),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     session = DB.get_session()
     try:
@@ -163,7 +163,7 @@ async def export_mps_opml(
     limit: int = Query(1000, ge=1, le=10000),
     offset: int = Query(0, ge=0),
     kw: str = Query(""),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     session = DB.get_session()
     try:
@@ -219,7 +219,7 @@ async def export_tags(
         limit: int = Query(1000, ge=1, le=10000),
         offset: int = Query(0, ge=0),
         kw: str = Query(""),
-        current_user: dict = Depends(get_current_user)
+        current_user: dict = Depends(get_current_user_or_ak)
 ):
     session = DB.get_session()
     try:
@@ -270,7 +270,7 @@ async def export_tags(
 @router.post("/tags/import", summary="导入标签列表")
 async def import_tags(
         file: UploadFile = File(...),
-        current_user: dict = Depends(get_current_user)
+        current_user: dict = Depends(get_current_user_or_ak)
 ):
     session = DB.get_session()
     try:
