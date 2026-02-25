@@ -126,16 +126,18 @@ async def test_message_task(
         
         # 创建测试用的模拟文章数据
         from datetime import datetime, timedelta
-        mock_articles = [{
-            "id": "test-article-001",
+        mock_articles = []
+        for i in range(1, 10):
+            mock_articles.append( {
+            "id": f"test-article-00{i}",
             "mp_id": feed.id,
-            "title": "测试文章标题",
+            "title": f"测试文章标题{i}",
             "pic_url": "https://via.placeholder.com/300x200",
-            "url": "https://example.com/test-article",
-            "description": "这是一篇测试文章的描述内容，用于测试消息任务功能是否正常。",
+            "url": f"https://example.com/test-article-{i}",
+            "description": f"这是一篇测试文章的描述内容，用于测试消息任务功能是否正常。第{i}篇文章。",
             "publish_time": (datetime.now() - timedelta(minutes=30)).strftime("%Y-%m-%d %H:%M:%S"),
             "content": "<p>这是测试文章的正文内容。</p>"
-        }]
+        })
         
         # 执行测试消息发送（web_hook函数内部会处理字典类型）
         from jobs.webhook import MessageWebHook, web_hook
