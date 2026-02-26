@@ -145,8 +145,8 @@ class RSS:
                 except Exception as e:
                     print(f"Error adding content:encoded element: {e}")
                 pass
-            # ET.SubElement(item, "category").text = rss_item["category"]
-            # ET.SubElement(item, "author").text = rss_item["author"]
+            if rss_item.get("mp_name"):
+                ET.SubElement(item, "author").text = rss_item["mp_name"]
             ET.SubElement(item, "link").text = rss_item["link"]
             ET.SubElement(item, "pubDate").text = self.datetime_to_rfc822(str(rss_item["updated"]))
 
