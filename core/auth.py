@@ -14,6 +14,7 @@ from passlib.context import CryptContext
 import json
 import secrets
 import hashlib
+from core.models.cascade_node import CascadeNode
 
 DB=db.Db(tag="用户连接")
 SECRET_KEY = cfg.get("secret","csol2025")  # 生产环境应使用更安全的密钥
@@ -46,11 +47,51 @@ class PasswordHasher:
 pwd_context = PasswordHasher()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{API_BASE}/auth/token",auto_error=False)
 
-# 用户缓存字典
+# 用户缓存字典 (格式: {key: (user_data, timestamp)})
 _user_cache = {}
-# 登录失败次数记录
+# 登录失败次数记录 (格式: {username: (attempts, timestamp)})
 _login_attempts = {}
 MAX_LOGIN_ATTEMPTS = 5
+# 缓存过期时间配置
+_USER_CACHE_TTL = 3600  # 用户缓存1小时过期
+_LOGIN_ATTEMPTS_TTL = 1800  # 登录失败记录30分钟过期
+
+
+def _cleanup_expired_cache():
+    """清理过期的缓存数据"""
+    now = datetime.utcnow()
+    
+    # 清理过期的用户缓存
+    expired_users = [
+        k for k, v in _user_cache.items() 
+        if isinstance(v, tuple) and (now - v[1]).total_seconds() > _USER_CACHE_TTL
+    ]
+    for k in expired_users:
+        del _user_cache[k]
+    
+    # 清理过期的登录失败记录
+    expired_attempts = [
+        k for k, v in _login_attempts.items() 
+        if isinstance(v, tuple) and (now - v[1]).total_seconds() > _LOGIN_ATTEMPTS_TTL
+    ]
+    for k in expired_attempts:
+        del _login_attempts[k]
+
+
+def clear_user_cache(username: str = None):
+    """清除用户缓存
+    
+    Args:
+        username: 如果指定，只清除该用户的缓存；否则清除所有缓存
+    """
+    if username:
+        if username in _user_cache:
+            del _user_cache[username]
+        cache_key = f"id:{username}"
+        if cache_key in _user_cache:
+            del _user_cache[cache_key]
+    else:
+        _user_cache.clear()
 
 
 # ===== Access Key (AK) 认证相关功能 =====
@@ -78,65 +119,86 @@ def verify_secret_key(plain_secret: str, hashed_secret: str) -> bool:
 
 def get_login_attempts(username: str) -> int:
     """获取用户登录失败次数"""
-    return _login_attempts.get(username, 0)
+    # 先清理过期缓存
+    _cleanup_expired_cache()
+    
+    data = _login_attempts.get(username)
+    if isinstance(data, tuple):
+        return data[0]
+    return 0
 
 def get_user(username: str) -> Optional[dict]:
     """从数据库获取用户，带缓存功能"""
-    # 先检查缓存
+    # 先清理过期缓存
+    _cleanup_expired_cache()
+    
+    # 检查缓存是否存在且未过期
     if username in _user_cache:
-        return _user_cache[username]
+        data = _user_cache[username]
+        if isinstance(data, tuple):
+            user_data, cached_time = data
+            return user_data
 
     session = DB.get_session()
     try:
         user = session.query(DBUser).filter(DBUser.username == username).first()
         if user:
-            # 转换为字典并存入缓存
+            # 转换为字典并存入缓存（带时间戳）
             user_dict = user.__dict__.copy()
             # 移除 SQLAlchemy 内部属性（如 _sa_instance_state）
             user_dict.pop('_sa_instance_state', None)
-            user_dict=User(**user_dict)
-            _user_cache[username] = user_dict
+            user_dict = User(**user_dict)
+            _user_cache[username] = (user_dict, datetime.utcnow())
             return user_dict
         return None
     except Exception as e:
         from core.print import print_error
         print_error(f"获取用户错误: {str(e)}")
         return None
+    finally:
+        session.remove()
 
 def get_user_by_id(user_id: str) -> Optional[dict]:
     """从数据库通过用户ID获取用户，带缓存功能"""
+    # 先清理过期缓存
+    _cleanup_expired_cache()
+    
     # 缓存键使用 id: 前缀
     cache_key = f"id:{user_id}"
     if cache_key in _user_cache:
-        return _user_cache[cache_key]
+        data = _user_cache[cache_key]
+        if isinstance(data, tuple):
+            user_data, cached_time = data
+            return user_data
 
     session = DB.get_session()
     try:
         user = session.query(DBUser).filter(DBUser.id == user_id).first()
         if user:
-            # 转换为字典并存入缓存
+            # 转换为字典并存入缓存（带时间戳）
             user_dict = user.__dict__.copy()
             # 移除 SQLAlchemy 内部属性（如 _sa_instance_state）
             user_dict.pop('_sa_instance_state', None)
-            user_dict=User(**user_dict)
-            _user_cache[cache_key] = user_dict
+            user_dict = User(**user_dict)
+            _user_cache[cache_key] = (user_dict, datetime.utcnow())
             return user_dict
         return None
     except Exception as e:
         from core.print import print_error
         print_error(f"通过ID获取用户错误: {str(e)}")
         return None
-        
-def clear_user_cache(username: str):
-    """清除指定用户的缓存"""
-    if username in _user_cache:
-        del _user_cache[username]
+    finally:
+        session.remove()
 
 from apis.base import error_response
 def authenticate_user(username: str, password: str) -> Optional[DBUser]:
     """验证用户凭据"""
+    # 先清理过期缓存
+    _cleanup_expired_cache()
+    
     # 检查是否超过最大尝试次数
-    if _login_attempts.get(username, 0) >= MAX_LOGIN_ATTEMPTS:
+    attempts = get_login_attempts(username)
+    if attempts >= MAX_LOGIN_ATTEMPTS:
         raise HTTPException(
             status_code=status.HTTP_202_ACCEPTED,
             detail=error_response(
@@ -148,9 +210,10 @@ def authenticate_user(username: str, password: str) -> Optional[DBUser]:
     user = get_user(username)
 
     if not user or not pwd_context.verify(password, user.password_hash):
-        # 增加失败次数
-        _login_attempts[username] = _login_attempts.get(username, 0) + 1
-        remaining_attempts = MAX_LOGIN_ATTEMPTS - _login_attempts[username]
+        # 增加失败次数（带时间戳）
+        current_attempts = get_login_attempts(username)
+        _login_attempts[username] = (current_attempts + 1, datetime.utcnow())
+        remaining_attempts = MAX_LOGIN_ATTEMPTS - (current_attempts + 1)
         raise HTTPException(
             status_code=status.HTTP_202_ACCEPTED,
             detail=error_response(
@@ -282,7 +345,7 @@ def create_ak(
             detail="创建Access Key失败"
         )
     finally:
-        session.close()
+        session.remove()
 
 
 def get_ak_by_key(access_key: str) -> Optional[AccessKey]:
@@ -299,7 +362,7 @@ def get_ak_by_key(access_key: str) -> Optional[AccessKey]:
         print_error(f"获取Access Key错误: {str(e)}")
         return None
     finally:
-        session.close()
+        session.remove()
 
 
 def authenticate_ak(access_key: str, secret_key: str) -> Optional[dict]:
@@ -336,7 +399,7 @@ def authenticate_ak(access_key: str, secret_key: str) -> Optional[dict]:
     except:
         session.rollback()
     finally:
-        session.close()
+        session.remove()
     
     # 解析权限
     try:
@@ -358,10 +421,10 @@ def authenticate_ak(access_key: str, secret_key: str) -> Optional[dict]:
 
 async def get_current_user_or_ak(request: Request, token: str = Depends(oauth2_scheme)):
     """
-    通用认证函数，支持 JWT Token 和 AK/SK 认证
+    通用认证函数，支持 JWT Token、AK/SK 认证和级联节点认证
     
     优先级:
-    1. Authorization 头中的 AK/SK (格式: "AK-SK ak_value:sk_value")
+    1. Authorization 头中的 AK/SK (格式: "AK-SK ak_value:sk_value") - 用户AK或级联节点AK
     2. Bearer Token (JWT)
     """
     # 检查 AK/SK 认证
@@ -371,6 +434,18 @@ async def get_current_user_or_ak(request: Request, token: str = Depends(oauth2_s
             credentials = auth_header[6:].strip()
             if ':' in credentials:
                 ak, sk = credentials.split(':', 1)
+                
+                # 1. 尝试级联节点认证
+                node = authenticate_cascade_node(ak, sk)
+                if node:
+                    return {
+                        "username": f"node_{node['name']}",
+                        "node_id": node['id'],
+                        "role": "cascade_node",
+                        "auth_type": "cascade_node"
+                    }
+                
+                # 2. 尝试用户AK认证
                 user_info = authenticate_ak(ak, sk)
                 if user_info:
                     return user_info
@@ -441,7 +516,7 @@ def list_user_aks(user_id: str) -> list:
         print_error(f"获取用户Access Keys错误: {str(e)}")
         return []
     finally:
-        session.close()
+        session.remove()
 
 
 def deactivate_ak(ak_id: str) -> bool:
@@ -460,7 +535,7 @@ def deactivate_ak(ak_id: str) -> bool:
         print_error(f"停用Access Key错误: {str(e)}")
         return False
     finally:
-        session.close()
+        session.remove()
 
 
 def delete_ak(ak_id: str) -> bool:
@@ -479,7 +554,7 @@ def delete_ak(ak_id: str) -> bool:
         print_error(f"删除Access Key错误: {str(e)}")
         return False
     finally:
-        session.close()
+        session.remove()
 
 
 def update_ak(ak_id: str, **kwargs) -> bool:
@@ -507,4 +582,61 @@ def update_ak(ak_id: str, **kwargs) -> bool:
         print_error(f"更新Access Key错误: {str(e)}")
         return False
     finally:
-        session.close()
+        session.remove()
+
+
+def authenticate_cascade_node(api_key: str, secret_key: str) -> Optional[dict]:
+    """
+    验证级联节点 AK/SK 凭证
+    
+    参数:
+        api_key: 级联节点的 API Key
+        secret_key: 级联节点的 Secret Key
+    
+    返回: 级联节点信息字典或 None
+    """
+    from core.print import print_info, print_error
+    session = DB.get_session()
+    try:
+        secret_hash = hashlib.sha256(secret_key.encode()).hexdigest()
+        
+        print_info(f"[级联认证] AK: {api_key}")
+        print_info(f"[级联认证] SK Hash: {secret_hash}")
+        
+        node = session.query(CascadeNode).filter(
+            CascadeNode.api_key == api_key,
+            CascadeNode.api_secret_hash == secret_hash,
+            CascadeNode.is_active == True
+        ).first()
+        
+        if node:
+            print_info(f"[级联认证] 找到节点: {node.name}")
+            # 更新最后心跳时间
+            node.last_heartbeat_at = datetime.utcnow()
+            session.commit()
+            
+            # 在 session 关闭前提取数据
+            return {
+                "id": node.id,
+                "name": node.name,
+                "node_type": node.node_type
+            }
+        else:
+            print_error(f"[级联认证] 未找到匹配节点")
+            # 调试：列出所有节点
+            all_nodes = session.query(CascadeNode).filter(
+                CascadeNode.api_key == api_key
+            ).all()
+            print_info(f"[级联认证] AK 匹配的节点数: {len(all_nodes)}")
+            for n in all_nodes:
+                print_info(f"[级联认证] 节点: {n.name}, active={n.is_active}, hash={n.api_secret_hash}")
+        
+        return None
+    except Exception as e:
+        from core.print import print_error
+        print_error(f"验证级联节点凭证错误: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return None
+    finally:
+        session.remove()

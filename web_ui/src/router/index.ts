@@ -154,6 +154,24 @@ const routes = [
           permissions: ['admin'] 
         }
       },
+      {
+        path: 'cascade',
+        name: 'CascadeManagement',
+        component: () => import('@/views/CascadeManagement.vue'),
+        meta: { 
+          requiresAuth: true,
+          permissions: ['admin'] 
+        }
+      },
+      {
+        path: 'env-exception',
+        name: 'EnvExceptionStats',
+        component: () => import('@/views/EnvExceptionStats.vue'),
+        meta: { 
+          requiresAuth: true,
+          permissions: ['admin'] 
+        }
+      },
     ]
   },
   {

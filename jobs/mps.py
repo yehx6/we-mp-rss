@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from core.models.article import Article
 from .article import UpdateArticle,Update_Over
 import core.db as db
@@ -43,7 +43,6 @@ def do_job(mp=None,task:MessageTask=None,isTest=False):
         all_count=0
         if isTest:
             # 测试模式使用模拟数据
-            from datetime import datetime, timedelta
             mock_articles = [{
                 "id": "test-article-001",
                 "mp_id": mp.id,
@@ -71,6 +70,23 @@ def do_job(mp=None,task:MessageTask=None,isTest=False):
         tms=MessageWebHook(task=task,feed=mp,articles=mock_articles)
         web_hook(tms, is_test=isTest)
         print_success(f"任务({task.id})[{mp.mp_name}]执行成功,{count}成功条数")
+        
+        # 级联节点：上报任务执行结果到父节点
+        from jobs.cascade_sync import cascade_sync_service
+        if not isTest and mock_articles:
+            import asyncio
+            try:
+                result_data = [{
+                    "mp_id": mp.id,
+                    "mp_name": mp.mp_name,
+                    "article_count": len(mock_articles) if not isTest else 1,
+                    "success_count": count if not isTest else 1,
+                    "timestamp": datetime.now().isoformat()
+                }]
+                # 异步上报，不阻塞主流程
+                asyncio.create_task(cascade_sync_service.report_task_result(task.id, result_data))
+            except Exception as e:
+                print_error(f"上报任务结果失败: {str(e)}")
 
 from core.queue import TaskQueue
 def add_job(feeds:list[Feed]=None,task:MessageTask=None,isTest=False):
@@ -130,11 +146,10 @@ def start_job(job_id:str=None):
         print(f"已添加任务: {job_id}")
     scheduler.start()
     print("启动任务")
-def start_all_task():
+def start_fix_article():
       #开启自动同步未同步 文章任务
     from jobs.fetch_no_article import start_sync_content
     start_sync_content()
-    start_job()
 if __name__ == '__main__':
     # do_job()
     # start_all_task()

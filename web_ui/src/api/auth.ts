@@ -82,6 +82,11 @@ export const checkQRCodeStatus = () => {
             clearInterval(interval_status_Id)
             resolve(response)
           }
+          if(response?.qr_code==false){
+            Message.error("二维码已失效，请重新获取")
+            clearInterval(interval_status_Id)
+            reject(new Error('二维码已失效'))
+          }
         }).catch(err => {
           // clearInterval(intervalId)
           // reject(err)

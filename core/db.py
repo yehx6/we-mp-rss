@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Engine,Text,event
+from sqlalchemy import create_engine, Engine,Text,event, inspect, text
 from sqlalchemy.orm import sessionmaker, declarative_base,scoped_session
 from sqlalchemy import Column, Integer, String, DateTime
 from typing import Optional, List
@@ -51,9 +51,32 @@ class Db:
                                      connect_args={"check_same_thread": False} if con_str.startswith('sqlite:///') else {}
                                      )
             self.session_factory=self.get_session_factory()
+            self.ensure_article_columns()
         except Exception as e:
             print(f"Error creating database connection: {e}")
             raise
+    def ensure_article_columns(self):
+        """Ensure required columns exist for legacy articles tables."""
+        try:
+            inspector = inspect(self.engine)
+            if "articles" not in inspector.get_table_names():
+                return
+
+            columns = {column["name"] for column in inspector.get_columns("articles")}
+            alter_statements = []
+            if "is_favorite" not in columns:
+                alter_statements.append("ALTER TABLE articles ADD COLUMN is_favorite INTEGER DEFAULT 0")
+
+            if not alter_statements:
+                return
+
+            with self.engine.begin() as conn:
+                for stmt in alter_statements:
+                    conn.execute(text(stmt))
+
+            print_info(f"[{self.tag}] 文章表结构已自动更新: {', '.join(alter_statements)}")
+        except Exception as e:
+            print_warning(f"[{self.tag}] 检查/更新 articles 表结构失败: {e}")
     def create_tables(self):
         """Create all tables defined in models"""
         from core.models.base import Base as B # 导入所有模型
@@ -95,6 +118,58 @@ class Db:
         try:
             session=self.get_session()
             from datetime import datetime
+
+            def _to_unix_seconds(value) -> int:
+                now_ts = int(datetime.now().timestamp())
+                if value is None:
+                    return now_ts
+                if isinstance(value, datetime):
+                    return int(value.timestamp())
+                if isinstance(value, (int, float)):
+                    iv = int(value)
+                    return int(iv / 1000) if iv > 1_000_000_000_000 else iv
+                if isinstance(value, str):
+                    raw = value.strip()
+                    if not raw:
+                        return now_ts
+                    if raw.isdigit():
+                        return _to_unix_seconds(int(raw))
+                    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+                        try:
+                            return int(datetime.strptime(raw, fmt).timestamp())
+                        except ValueError:
+                            continue
+                    try:
+                        return int(datetime.fromisoformat(raw.replace("Z", "+00:00")).timestamp())
+                    except ValueError:
+                        return now_ts
+                return now_ts
+
+            def _to_unix_millis(value, fallback_seconds: int) -> int:
+                if value is None:
+                    return fallback_seconds * 1000
+                if isinstance(value, datetime):
+                    return int(value.timestamp() * 1000)
+                if isinstance(value, (int, float)):
+                    iv = int(value)
+                    return iv if iv > 1_000_000_000_000 else iv * 1000
+                if isinstance(value, str):
+                    raw = value.strip()
+                    if not raw:
+                        return fallback_seconds * 1000
+                    if raw.isdigit():
+                        return _to_unix_millis(int(raw), fallback_seconds)
+                    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+                        try:
+                            return int(datetime.strptime(raw, fmt).timestamp() * 1000)
+                        except ValueError:
+                            continue
+                    try:
+                        return int(datetime.fromisoformat(raw.replace("Z", "+00:00")).timestamp() * 1000)
+                    except ValueError:
+                        return fallback_seconds * 1000
+                return fallback_seconds * 1000
+
             art = Article(**article_data)
             if art.id:
                art.id=f"{str(art.mp_id)}-{art.id}".replace("MP_WXS_","")
@@ -107,12 +182,16 @@ class Db:
                     return False
                 
             if art.created_at is None:
-                art.created_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            if art.updated_at is None:
-                art.updated_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            art.created_at=datetime.strptime(art.created_at ,'%Y-%m-%d %H:%M:%S')
-            art.updated_at=datetime.strptime(art.updated_at,'%Y-%m-%d %H:%M:%S')
+                art.created_at=datetime.now()
+            if isinstance(art.created_at, str):
+                art.created_at=datetime.strptime(art.created_at ,'%Y-%m-%d %H:%M:%S')
+            art.updated_at = _to_unix_seconds(art.updated_at)
+            art.updated_at_millis = _to_unix_millis(art.updated_at_millis, art.updated_at)
             art.content=art.content
+
+            if art.content_html is None:
+                from tools.fix import fix_html
+                art.content_html = fix_html(art.content)
             from core.models.base import DATA_STATUS
             art.status=DATA_STATUS.ACTIVE
             session.add(art)

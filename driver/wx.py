@@ -103,7 +103,7 @@ class Wx:
             
             # 等待页面加载完成
             page.wait_for_load_state("networkidle")
-            
+            self._haslogin=False
             # 点击账号信息区域打开账号面板
             account_info = page.locator(".weui-desktop-account__info")
             if account_info.count() > 0:
@@ -209,6 +209,9 @@ class Wx:
                 raise Exception(f"登录已经失效，请重新登录")
         except Exception as e:
             raise Exception(f"浏览器关闭")  # 重新抛出异常以便外部捕获处理
+    def QrStatus(self):
+        return {"login_status":self.HasLogin(),"qr_code":self.GetHasCode()}
+
     def HasLogin(self):
         with self._login_lock:
             return self._haslogin
@@ -224,7 +227,7 @@ class Wx:
             self.refresh_task()
             # 使用守护线程避免资源泄露
             timer = Timer(self.refresh_interval, self.schedule_refresh)
-            timer.daemon = True
+            timer.daemon = True  # 设置为守护线程，避免内存泄漏
             timer.start()
         except Exception as e:
             print_error(f"定时刷新任务失败: {str(e)}")
@@ -378,6 +381,7 @@ class Wx:
         except Exception as e:
             if "Timeout" in str(e):
                 print_warning("\n扫码登录超时，请重新运行程序进行扫码登录")
+
             else:
                 print_error(f"\n错误发生: {str(e)}")
             self.SESSION=None

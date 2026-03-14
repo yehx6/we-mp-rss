@@ -8,6 +8,9 @@ import random
 import uuid
 import asyncio
 from socket import timeout
+from urllib.parse import urlparse, unquote
+
+from core.print import print_error
 
 # 设置环境变量
 browsers_name = os.getenv("BROWSER_TYPE", "firefox")
@@ -26,6 +29,37 @@ class PlaywrightController:
         self.context = None
         self.page = None
         self.isClose = True
+
+    def _mask_proxy_url(self, proxy_url: str) -> str:
+        if not proxy_url:
+            return ""
+        parsed = urlparse(proxy_url)
+        if parsed.username or parsed.password:
+            netloc = parsed.hostname or ""
+            if parsed.port:
+                netloc = f"{netloc}:{parsed.port}"
+            return f"{parsed.scheme}://***:***@{netloc}"
+        return proxy_url
+
+    def _build_proxy_options(self, proxy_url: str):
+        if not proxy_url:
+            return None
+
+        parsed = urlparse(proxy_url)
+        if not parsed.scheme or not parsed.hostname:
+            raise ValueError(f"代理地址格式无效: {proxy_url}")
+
+        server = f"{parsed.scheme}://{parsed.hostname}"
+        if parsed.port:
+            server = f"{server}:{parsed.port}"
+
+        proxy_options = {"server": server}
+        if parsed.username:
+            proxy_options["username"] = unquote(parsed.username)
+        if parsed.password:
+            proxy_options["password"] = unquote(parsed.password)
+        return proxy_options
+
     def _is_browser_installed(self, browser_name):
         """检查指定浏览器是否已安装"""
         try:
@@ -57,7 +91,7 @@ class PlaywrightController:
                 self.browser is not None and 
                 self.context is not None and 
                 self.page is not None)
-    def start_browser(self, headless=True, mobile_mode=False, dis_image=True, browser_name=browsers_name, language="zh-CN", anti_crawler=True):
+    def start_browser(self, headless=True, mobile_mode=False, dis_image=True, browser_name=browsers_name, language="zh-CN", anti_crawler=True, proxy_url=""):
         try:
             # 使用线程锁确保线程安全
             if  str(os.getenv("NOT_HEADLESS",False))=="True":
@@ -86,6 +120,11 @@ class PlaywrightController:
             launch_options = {
                 "headless": headless
             }
+
+            proxy_options = self._build_proxy_options(proxy_url)
+            if proxy_options:
+                print(f"浏览器代理已启用: {self._mask_proxy_url(proxy_url)}")
+                launch_options["proxy"] = proxy_options
             
             # 在Windows上添加额外的启动选项
             if self.system == "windows":
@@ -122,9 +161,8 @@ class PlaywrightController:
             self.isClose = False
             return self.page
         except Exception as e:
-            print(f"浏览器启动失败: {str(e)}")
-            tips="Docker环境;您可以设置环境变量INSTALL=True并重启Docker自动安装浏览器环境;如需要切换浏览器可以设置环境变量BROWSER_TYPE=firefox 支持(firefox,webkit,chromium),开发环境请手工安装"
-            print(tips)
+            tips=f"{str(e)}\nDocker环境;您可以设置环境变量INSTALL=True并重启Docker自动安装浏览器环境;如需要切换浏览器可以设置环境变量BROWSER_TYPE=firefox 支持(firefox,webkit,chromium),开发环境请手工安装"
+            print_error(tips)
             self.cleanup()
             raise Exception(tips)
         
@@ -300,14 +338,11 @@ class PlaywrightController:
    
 
     def __del__(self):
-        # 避免在程序退出时调用Close()，防止"can't register atexit after shutdown"错误
+        # 析构时确保资源被释放
         try:
-            import atexit
-            # 检查是否在atexit处理过程中
-            if not atexit._exithandlers:
-                self.Close()
-        except:
-            # 如果发生任何异常，直接跳过清理
+            self.Close()
+        except Exception:
+            # 析构函数中避免抛出异常
             pass
 
     def open_url(self, url,wait_until="domcontentloaded"):
@@ -329,7 +364,7 @@ class PlaywrightController:
                 self.context.close()
             if hasattr(self, 'browser') and self.browser:
                 self.browser.close()
-            if hasattr(self, 'playwright') and self.driver:
+            if hasattr(self, 'driver') and self.driver:
                 self.driver.stop()
             self.isClose = True
         except Exception as e:
